@@ -3,3 +3,4 @@ mysql-connector-python>=9.0,<10.0
 gunicorn
 google-genai
 python-dotenv
+itsdangerous

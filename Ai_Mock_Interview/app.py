@@ -1,9 +1,43 @@
 # Gemini AI answer evaluation
 import os
 from dotenv import load_dotenv
+import smtplib
+from email.message import EmailMessage
+from itsdangerous import URLSafeTimedSerializer
 from google import genai
+import smtplib
+from email.message import EmailMessage
+from itsdangerous import URLSafeTimedSerializer 
 
 load_dotenv()
+MAIL_SERVER = "smtp.gmail.com"
+MAIL_PORT = 587
+MAIL_USERNAME = os.getenv("MAIL_USERNAME")
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+MAIL_DEFAULT_SENDER = os.getenv("MAIL_DEFAULT_SENDER")
+def send_reset_email(to_email, reset_url):
+    msg = EmailMessage()
+    msg["Subject"] = "MockMate - Reset Your Password"
+    msg["From"] = MAIL_DEFAULT_SENDER
+    msg["To"] = to_email
+
+    msg.set_content(
+        f"""Hello,
+
+We received a request to reset your MockMate password.
+
+Open this link to reset it:
+{reset_url}
+
+If you did not request this, you can ignore this email.
+"""
+    )
+
+    with smtplib.SMTP(MAIL_SERVER, MAIL_PORT) as server:
+        server.starttls()
+        server.login(MAIL_USERNAME, MAIL_PASSWORD)
+        server.send_message(msg)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-only-change-this')
 
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key) if api_key else None
@@ -37,7 +71,7 @@ def evaluate_answer(question, answer):
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.5-flash",
             contents=prompt
         )
 
@@ -282,6 +316,37 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for('index'))
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+
+        user = query(
+            'SELECT id FROM users WHERE email = ?',
+            (email,),
+            one=True
+        )
+
+        if user:
+            token = generate_reset_token(email)
+            reset_url = url_for(
+                'reset_password',
+                token=token,
+                _external=True
+            )
+
+            try:
+                send_reset_email(email, reset_url)
+            except Exception:
+                app.logger.exception("Password reset email failed")
+
+        flash(
+            'If that email is registered, reset instructions will be sent.',
+            'info'
+        )
+        return redirect(url_for('login'))
+
+    return render_template('forgot_password.html')
 
 
 @app.route('/dashboard')
@@ -341,3 +406,42 @@ def health():
 init_db()
 if __name__ == '__main__':
     app.run(debug=True)
+def generate_reset_token(email):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    return serializer.dumps(email, salt='password-reset-salt')
+
+def verify_reset_token(token, max_age=1800):
+    serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+    try:
+        return serializer.loads(
+            token,
+            salt='password-reset-salt',
+            max_age=max_age
+        )
+    except Exception:
+        return None
+    @app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    email = verify_reset_token(token)
+
+    if not email:
+        flash('Reset link is invalid or expired.', 'error')
+        return redirect(url_for('forgot_password'))
+
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+
+        if len(password) < 8:
+            flash('Password must be at least 8 characters.', 'error')
+            return render_template('reset_password.html')
+
+        password_hash = hash_password(password)
+        execute(
+            'UPDATE users SET password_hash = ? WHERE email = ?',
+            (password_hash, email)
+        )
+
+        flash('Password reset successful. Please log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('reset_password.html')
