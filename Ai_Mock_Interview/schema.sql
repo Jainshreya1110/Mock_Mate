@@ -1,0 +1,21 @@
+CREATE DATABASE IF NOT EXISTS ai_mock_interview;
+USE ai_mock_interview;
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS interview_results (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  category VARCHAR(80) NOT NULL,
+  total_questions INT NOT NULL,
+  attempted INT NOT NULL,
+  score INT NOT NULL,
+  answers_json LONGTEXT NOT NULL,
+  feedback_json LONGTEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);

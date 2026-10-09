@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}MockMate | AI Mock Interview{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="{{ url_for('index') }}"><span class="brand-icon">M</span><span>mockmate<span class="brand-dot">.</span></span></a>
+<nav>{% if current_user %}<a href="{{ url_for('dashboard') }}">Dashboard</a><a href="{{ url_for('history') }}">My results</a><span class="nav-user">Hi, {{ current_user.split(' ')[0] }}</span><a class="nav-button" href="{{ url_for('logout') }}">Sign out</a>{% else %}<a href="{{ url_for('login') }}">Sign in</a><a class="nav-button" href="{{ url_for('register') }}">Get started <span>↗</span></a>{% endif %}</nav></header>
+<main class="page-shell">{% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}<div class="flash-wrap">{% for category, message in messages %}<div class="flash {{ category }}">{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}{% block content %}{% endblock %}</main>
+<footer class="footer"><span>© {{ year }} MockMate</span><span>Practice with purpose. Interview with confidence.</span></footer>
+{% block scripts %}{% endblock %}</body></html>
