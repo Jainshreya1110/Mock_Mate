@@ -1,3 +1,57 @@
+import os
+from dotenv import load_dotenv
+from google import genai
+
+load_dotenv()
+
+api_key = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=api_key) if api_key else None
+def evaluate_answer(question, answer):
+    if not client:
+        return {
+            "score": 0,
+            "feedback": "AI is not configured. Check your API key.",
+            "suggestion": "Configure your Gemini API key."
+        }
+
+    if not answer.strip():
+        return {
+            "score": 0,
+            "feedback": "No answer provided.",
+            "suggestion": "Try answering the question."
+        }
+
+    prompt = f"""
+    You are a technical interview evaluator.
+
+    Question: {question}
+    Candidate's answer: {answer}
+
+    Evaluate correctness, relevance and clarity.
+    Return:
+    Score: a number out of 10
+    Feedback: specific strengths and mistakes
+    Suggestion: how to improve the answer
+    """
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+
+        return {
+            "score": 0,
+            "feedback": response.text,
+            "suggestion": "Review the feedback and improve your answer."
+        }
+
+    except Exception as e:
+        return {
+            "score": 0,
+            "feedback": f"AI evaluation failed: {e}",
+            "suggestion": "Check the API key and try again."
+        }
 import os, json, sqlite3, hashlib, secrets, re
 from datetime import datetime
 from functools import wraps
@@ -245,7 +299,10 @@ def interview():
         category = 'Python'
     if request.method == 'POST':
         answers = [request.form.get(f'answer_{i}', '').strip() for i in range(len(QUESTION_BANK[category]))]
-        feedback = [score_answer(a, QUESTION_BANK[category][i][1]) for i, a in enumerate(answers)]
+        feedback = [
+            evaluate_answer(QUESTION_BANK[category][i][0], a)
+            for i, a in enumerate(answers)
+        ]
         attempted = sum(bool(a) for a in answers)
         score = round(sum(item['score'] for item in feedback) / len(feedback)) if feedback else 0
         result_id = execute('INSERT INTO interview_results (user_id, category, total_questions, attempted, score, answers_json, feedback_json) VALUES (?, ?, ?, ?, ?, ?, ?)',
